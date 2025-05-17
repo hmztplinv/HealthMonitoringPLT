@@ -1,0 +1,193 @@
+version: '3.8'
+
+services:
+  # API Gateway
+  api-gateway:
+    build:
+      context: ./src
+      dockerfile: ApiGateway/Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - identity-service
+      - organization-service
+      - patient-service
+      - device-service
+      - vital-service
+      - notification-service
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+
+  # Identity Service
+  identity-service:
+    build:
+      context: ./src
+      dockerfile: IdentityService/Dockerfile
+    depends_on:
+      - postgres-identity
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__IdentityConnection=Host=postgres-identity;Database=identity_db;Username=postgres;Password=postgres
+
+  # Organization Service
+  organization-service:
+    build:
+      context: ./src
+      dockerfile: OrganizationService/Dockerfile
+    depends_on:
+      - postgres-organization
+      - kafka
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__OrganizationConnection=Host=postgres-organization;Database=organization_db;Username=postgres;Password=postgres
+      - Kafka__BootstrapServers=kafka:9092
+
+  # Patient Service
+  patient-service:
+    build:
+      context: ./src
+      dockerfile: PatientService/Dockerfile
+    depends_on:
+      - mongodb
+      - kafka
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - MongoDB__ConnectionString=mongodb://mongodb:27017
+      - MongoDB__DatabaseName=patient_db
+      - Kafka__BootstrapServers=kafka:9092
+
+  # Device Service
+  device-service:
+    build:
+      context: ./src
+      dockerfile: DeviceService/Dockerfile
+    depends_on:
+      - timescaledb
+      - mosquitto
+      - kafka
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DeviceConnection=Host=timescaledb;Database=device_db;Username=postgres;Password=postgres
+      - MQTT__Host=mosquitto
+      - MQTT__Port=1883
+      - Kafka__BootstrapServers=kafka:9092
+
+  # Vital Service
+  vital-service:
+    build:
+      context: ./src
+      dockerfile: VitalService/Dockerfile
+    depends_on:
+      - influxdb
+      - kafka
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - InfluxDB__Url=http://influxdb:8086
+      - InfluxDB__Token=yourinfluxdbtoken
+      - InfluxDB__Bucket=vital_data
+      - InfluxDB__Org=health_org
+      - Kafka__BootstrapServers=kafka:9092
+
+  # Notification Service
+  notification-service:
+    build:
+      context: ./src
+      dockerfile: NotificationService/Dockerfile
+    depends_on:
+      - redis
+      - kafka
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - Redis__ConnectionString=redis:6379
+      - Kafka__BootstrapServers=kafka:9092
+
+  # PostgreSQL for Identity Service
+  postgres-identity:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=identity_db
+    volumes:
+      - postgres-identity-data:/var/lib/postgresql/data
+
+  # PostgreSQL for Organization Service
+  postgres-organization:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=organization_db
+    volumes:
+      - postgres-organization-data:/var/lib/postgresql/data
+
+  # MongoDB for Patient Service
+  mongodb:
+    image: mongo:5
+    volumes:
+      - mongodb-data:/data/db
+
+  # TimescaleDB for Device Service
+  timescaledb:
+    image: timescale/timescaledb:latest-pg15
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=device_db
+    volumes:
+      - timescaledb-data:/var/lib/postgresql/data
+
+  # InfluxDB for Vital Service
+  influxdb:
+    image: influxdb:2
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=password123
+      - DOCKER_INFLUXDB_INIT_ORG=health_org
+      - DOCKER_INFLUXDB_INIT_BUCKET=vital_data
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=yourinfluxdbtoken
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+
+  # Redis for Notification Service
+  redis:
+    image: redis:7
+    volumes:
+      - redis-data:/data
+
+  # Mosquitto MQTT Broker for IoT Devices
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports:
+      - "1883:1883"
+    volumes:
+      - mosquitto-data:/mosquitto/data
+      - mosquitto-log:/mosquitto/log
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+
+  # Kafka for Event-Driven Architecture
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.3.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+
+  kafka:
+    image: confluentinc/cp-kafka:7.3.0
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+volumes:
+  postgres-identity-data:
+  postgres-organization-data:
+  mongodb-data:
+  timescaledb-data:
+  influxdb-data:
+  redis-data:
+  mosquitto-data:
+  mosquitto-log:

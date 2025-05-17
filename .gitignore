@@ -1,0 +1,50 @@
+## Build results
+bin/
+obj/
+
+## User-specific files
+*.user
+*.userosscache
+*.sln.docstates
+
+## VS Code settings
+.vscode/
+
+## Auto-generated files
+*.log
+*.tlog
+*.vspscc
+*.vssscc
+
+## .NET Core specific
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Uncomment if using ASP.NET Core with Razor Pages or MVC
+# wwwroot/
+
+## NuGet
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+*.nuspec
+
+## Rider IDE (JetBrains)
+.idea/
+*.sln.iml
+
+## Visual Studio Code Workspace
+*.code-workspace
+
+## Secrets (optional, adjust as needed)
+secrets.json
+appsettings.Development.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# dotenv files (if used)
+.env
